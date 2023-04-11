@@ -1,5 +1,5 @@
 /**
- * updated 30-12-17 23:59
+ * updated 11-04-2023 20:30
  * ----------------------------------
  * Custom Sidebar for Home Assistant
  * ----------------------------------
@@ -19,7 +19,9 @@
   !window.$customSidebarV2 &&
     (window.$customSidebarV2 = { tryCounter: 0, Loaded: false });
 
-  const ver = '301217_2359';
+  const ver = '110423_2030';
+  const verbose_logging = false;
+  const log_sidebar_object = false;
 
   let runInterval;
 
@@ -47,21 +49,23 @@
     return [].concat(list || []);
   }
 
-  function log(how, what, ...stuff) {
+  function log(show, how, what, ...stuff) {
     const style = {
       error: 'background:#8b0000; color:white; padding:2px; border-radius:2px',
       warn: 'background:#8b0000; color:white; padding:2px; border-radius:2px',
       log: 'background:#222; color:#bada55; padding:2px; border-radius:2px;',
     };
-    if (how !== 'warn' && how !== 'error') {
-      how = 'log';
+    if (show) {
+      if (how !== 'warn' && how !== 'error') {
+        how = 'log';
+      }
+      console[how](
+        '%cCustom sidebar (ver.' + ver + '): ' + what,
+        style[how],
+        ...(asArray(stuff) || ['']),
+        (log_sidebar_object ? window.$customSidebarV2 : '')
+      );
     }
-    console[how](
-      '%cCustom sidebar (ver.' + ver + '): ' + what,
-      style[how],
-      ...(asArray(stuff) || ['']),
-      window.$customSidebarV2
-    );
   }
 
   function getHaobj() {
@@ -108,6 +112,7 @@
     const drawerLayout = root && root.querySelector('ha-drawer');
     !drawerLayout &&
       log(
+        verbose_logging,
         'warn',
         'Cannot find "home-assistant home-assistant-main ha-drawer" element'
       );
@@ -128,7 +133,7 @@
     sidebar = sidebar && sidebar.querySelector('paper-listbox');
 
     !sidebar &&
-      log('warn', 'Cannot find "ha-drawer ha-sidebar paper-listbox" element');
+      log(true, 'warn', 'Cannot find "ha-drawer ha-sidebar paper-listbox" element');
 
     return (window.$customSidebarV2.SideBarElement = sidebar);
   }
@@ -146,14 +151,10 @@
       );
     });
     if (!lastdatapanel) {
-      lastpanel = Array.from(root.children).find((element) => {
-        return (
-          element.tagName == 'A' && element.getAttribute('data-panel') == 'media-browser'
-        );
-      });
+      lastdatapanel = Array.from(root.children).slice(-1);
     }
       
-    return lastpanel;
+    return lastdatapanel;
   }
 
   function setTitle(title) {
@@ -190,9 +191,11 @@
             if (existingItem) {
               item.itemElement = existingItem;
               shouldCreate && (item.created = true);
+              log(verbose_logging, 'log', 'Moving existing item i: ' + i, item);
               moveItem(window.$customSidebarV2.SideBarElement, item, i);
             } else {
               shouldMove && (item.moved = true);
+              log(verbose_logging, 'log', 'Creating item i: ' + i, item);
               item.href &&
                 createItem(window.$customSidebarV2.SideBarElement, item, i);
             }
@@ -209,7 +212,7 @@
         });
       }
     } catch (e) {
-      log('warn', 'Error rearranging order', e);
+      log(true, 'warn', 'Error rearranging order', e);
       return false;
     }
     return true;
@@ -232,7 +235,7 @@
       }
       icn.setAttribute('icon', icon);
     } catch (e) {
-      log('warn', 'Error updating icon', e);
+      log(true, 'warn', 'Error updating icon', e);
     }
   }
 
@@ -246,7 +249,7 @@
     try {
       findNameElement(element).innerHTML = name;
     } catch (e) {
-      log('warn', 'Error updating text', e);
+      log(true, 'warn', 'Error updating text', e);
     }
   }
 
@@ -268,7 +271,7 @@
       });
       return item;
     } catch (e) {
-      log('warn', 'Error finding item', e);
+      log(true, 'warn', 'Error finding item', e);
       return null;
     }
   }
@@ -321,7 +324,7 @@
         config_entry.itemElement = cln;
       }
     } catch (e) {
-      log('warn', 'Error creating item', e);
+      log(true, 'warn', 'Error creating item', e);
     }
   }
 
@@ -364,10 +367,10 @@
         config_entry.moved = true;
         config_entry.itemElement = elementToMove;
       } else {
-        log('warn', 'Element to move not found', config_entry);
+        log(true, 'warn', 'Element to move not found', config_entry);
       }
     } catch (e) {
-      log('warn', 'Error moving item', e);
+      log(true, 'warn', 'Error moving item', e);
     }
   }
 
@@ -400,7 +403,7 @@
         exceptions.forEach((e) => order.push(...e.order));
       }
     } catch (e) {
-      log('warn', 'Error processing exceptions', e);
+      log(true, 'warn', 'Error processing exceptions', e);
     }
     return order;
   }
@@ -424,14 +427,15 @@
     clearInterval(runInterval);
     if (!success || error || window.$customSidebarV2.tryCounter > 10) {
       window.$customSidebarV2.Loaded = 'error';
-      log('warn', 'Failed', error || '');
+      log(true, 'warn', 'Failed', error || '');
     } else if (success) {
       window.$customSidebarV2.Loaded = 'success';
-      log('log', 'Loaded successfully!');
+      log(true, 'log', 'Loaded successfully!');
     }
   }
 
   function run() {
+    log(verbose_logging, 'log', 'Running customSicebar startup');
     try {
       window.$customSidebarV2.DrawerLayoutElement = getDrawerLayout();
       window.$customSidebarV2.SideBarElement = getSidebar();
@@ -466,6 +470,7 @@
                 (config) => {
                   if (config.id && config.id.includes('example_json')) {
                     log(
+                      true,
                       'log',
                       'You seem to be using example configuration.\nMake sure you have valid config in /config/www/sidebar-order.json file.'
                     );
